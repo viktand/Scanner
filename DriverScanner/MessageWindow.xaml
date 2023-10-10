@@ -1,0 +1,12 @@
+﻿<Window x:Class="DriverScanner.MessageWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:DriverScanner"
+        mc:Ignorable="d"
+        Title="Сообщение" Height="146" Width="609" WindowStyle="None" ResizeMode="NoResize" WindowStartupLocation="CenterScreen">
+    <Grid>
+        <TextBlock Margin="10" TextWrapping="Wrap" Text="{Binding MessageText}" VerticalAlignment="Center" HorizontalAlignment="Center" FontSize="24" FontWeight="Bold"/>
+    </Grid>
+</Window>
