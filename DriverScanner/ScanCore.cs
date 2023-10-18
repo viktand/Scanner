@@ -11,6 +11,7 @@ namespace DriverScanner
 {
     internal class ScanCore
     {
+        private readonly KernelConnector _kernel;
         private Twain32 _scaner;
         private bool _check;
         private System.Timers.Timer _timer;
@@ -19,8 +20,9 @@ namespace DriverScanner
         public event EventHandler<int> ScanEvent;
         public event EventHandler<string> NewScan;
 
-        public ScanCore()
+        public ScanCore(KernelConnector kernelConnector)
         {
+            _kernel = kernelConnector;
             _scaner = new Twain32();
         }
 
@@ -56,7 +58,7 @@ namespace DriverScanner
                         _check = false;
                         Logger.Log("Ошибка при инициализации сканера. Будет нажатие на кнопку питания.");
                         ScanEvent(this, 10);
-                        var mess = Kernel.PowerSwitch();
+                        var mess = _kernel.PowerSwitch();
                         if (mess != "")
                         {
                             Logger.Log($"Не удалось нажать кнопку питания, получена ошибка {mess}");
@@ -95,14 +97,16 @@ namespace DriverScanner
                     _scaner.DeviceEvent += _scaner_DeviceEvent;
 
                     ScanEvent?.Invoke(this, 1);
-                    Kernel.PaperSwitch(true, out var m);
+                    // Замкнуть датчик бумаги, чтобы сканер начал затягивать документ. Ну он так будет думать.
+                    _kernel.PaperSwitch(true, out var m);
+                    // Таймер, который отключает датчик бумагм, чтобы остановить процесс, если документ так и не вставили.
                     _timer = new System.Timers.Timer(3000)
                     {
                         AutoReset = false
                     };
                     _timer.Elapsed += (object sender, System.Timers.ElapsedEventArgs e) =>
                     {
-                        Kernel.PaperSwitch(false, out var m2);
+                        _kernel.PaperSwitch(false, out var m2);
                         _timer.Stop();
                         _timer.Dispose();
                     };

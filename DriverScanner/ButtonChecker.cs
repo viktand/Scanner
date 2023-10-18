@@ -8,21 +8,23 @@ namespace DriverScanner
         public event EventHandler<bool> Click;
 
         private Timer _timer;
+        private readonly KernelConnector _kernel;
 
-        public ButtonChecker() 
+        public ButtonChecker(KernelConnector kernelConnector) 
         {
-            Kernel.ButtonIni();
+            _kernel = kernelConnector;
+            _kernel.ButtonIni();
             _timer = new Timer(200)
             {
                 AutoReset = false
             };
-            _timer.Elapsed += _timer_Elapsed;
+            _timer.Elapsed += Timer_Elapsed;
             _timer.Start();
         }
 
-        private void _timer_Elapsed(object sender, ElapsedEventArgs e)
+        private void Timer_Elapsed(object sender, ElapsedEventArgs e)
         {
-            var status = Kernel.ButtonCheck();
+            var status = _kernel.ButtonCheck();
             Click(this, status);
             _timer.Start();
         }

@@ -18,8 +18,7 @@ namespace DriverScanner
     public class Sender
     {
         private Queue<string> _que;
-        private System.Timers.Timer _timer;
-        private Dictionary<int, Bitmap> _waits;
+        private Timer _timer;
         private string _code;
         private string _pass;
         private string _url;
@@ -27,17 +26,16 @@ namespace DriverScanner
         public Sender()
         {
             _que = new Queue<string>();
-            _waits = new Dictionary<int, Bitmap>();
             _code = ConfigurationManager.AppSettings["TerminalCode"];
             _pass = ConfigurationManager.AppSettings["TerminalPassword"];
             _url = ConfigurationManager.AppSettings["FileUrl"];
-            _timer = new System.Timers.Timer(1000);
-            _timer.Elapsed += _timer_Elapsed;
+            _timer = new Timer(1000);
+            _timer.Elapsed += Timer_Elapsed;
             _timer.AutoReset = false;
             _timer.Start();
         }
 
-        private void _timer_Elapsed(object sender, ElapsedEventArgs e)
+        private void Timer_Elapsed(object sender, ElapsedEventArgs e)
         {
             if(_que.Count == 0)
             {
@@ -88,7 +86,7 @@ namespace DriverScanner
                     url = _url + $"?token={token}&timestamp={timestamp}&terminal-code={_code}";
                     json = JsonConvert.SerializeObject(dto);
                     var result = url.PostJsonToUrl(json);
-                    Logger.Log(result);
+                    Logger.Log($"Ответ удаленного сервера: {result}");
                     return true;
                 }
                 catch (Exception e)

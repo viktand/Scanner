@@ -14,7 +14,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Timers;
 using System.Windows;
-using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 
@@ -35,12 +34,13 @@ namespace DriverScanner
         private ScanCore scanner;
 
         public List<string> _scans;
-        private Button _button;
         private bool _hardButton;
         private int _counter;
         private int _norm;
         private Sender _sender;
         private ButtonChecker _checker;
+        private bool _inClose;
+        private readonly KernelConnector _kernel;
 
         public event PropertyChangedEventHandler PropertyChanged;
 
@@ -61,11 +61,13 @@ namespace DriverScanner
             var norm = ConfigurationManager.AppSettings["Count"];
             if(!int.TryParse(norm, out _norm))
             {
-                _norm = 5;
+                _norm = 2;// 5;
             }
             _sender = new Sender();
-            _checker = new ButtonChecker();
+            _kernel = new KernelConnector();
+            _checker = new ButtonChecker(_kernel);
             _checker.Click += _checker_Click;
+            
         }
 
         private void _checker_Click(object sender, bool e)
@@ -108,14 +110,15 @@ namespace DriverScanner
 
         private void Button_Click(object sender, RoutedEventArgs e)
         {
+            if (_inClose) return;
             try
             {
                 if (_loaded)
                 {
+                    _inClose = true;
                     Logger.Log("Остановка сканирования по кнопке");
                     _loaded = false;
                     scanner.StopLoopScan();
-                    //EndScann();
                     _scans = new List<string>();
                     list.Visibility = Visibility.Hidden;
                     mainbtn.Content = "Загрузить документы";
@@ -143,7 +146,7 @@ namespace DriverScanner
 
         private void Scann()
         {                       
-            scanner = new ScanCore();
+            scanner = new ScanCore(_kernel);
             scanner.ScanEvent += Scanner_ScanEvent;
             scanner.NewScan += Scanner_NewScan;
             scanner.GoAuto();           
@@ -180,7 +183,9 @@ namespace DriverScanner
             scanner.ScanEvent -= Scanner_ScanEvent;
             scanner = null;
             SavePdf();
+            _inClose = false;
             ClearScanFolder();
+
         }
 
         /// <summary>
@@ -245,7 +250,7 @@ namespace DriverScanner
             {
                 list.Visibility = Visibility.Hidden;
                 coun.Visibility = Visibility.Hidden;
-                _button.Content = "Загрузить документы";
+                mainbtn.Content = "Загрузить документы";
                 TextLoad = GetTextLoad();
             });
         }
@@ -301,9 +306,13 @@ namespace DriverScanner
                     _loaded = false;
                     Dispatcher.Invoke(() =>
                     {
-                        _button.Content = "Загрузить документы";
+                        _scans = new List<string>();
+                        list.Visibility = Visibility.Hidden;
+                        mainbtn.Content = "Загрузить документы";
+                        TextLoad = GetTextLoad();
+                        coun.Visibility = Visibility.Hidden;
                     });
-                    EndScann();
+
                     break;
                 case 13:                    
                     Show("Сканирование завершено");
@@ -346,7 +355,7 @@ namespace DriverScanner
 
         private void Button_Click_1(object sender, RoutedEventArgs e)
         {          
-            var t = Kernel.PowerSwitch();
+            var t = _kernel.PowerSwitch();
             if(t != "")
             {
                 Show(t);
@@ -358,7 +367,7 @@ namespace DriverScanner
         private void Window_Loaded(object sender, RoutedEventArgs e)
         {
 
-            if (!Kernel.PaperSwitch(false, out var m))
+            if (!_kernel.PaperSwitch(false, out var m))
             {
                 Show("Ошибка связи с Кернел-чипом");
             }
