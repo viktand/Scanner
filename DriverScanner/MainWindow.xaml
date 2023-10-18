@@ -24,7 +24,7 @@
             </ListBox>
             <StackPanel Orientation="Horizontal" VerticalAlignment="Bottom" Margin="0,100,0,0">
                 <Button Content="Power" HorizontalAlignment="Left" Margin="20"  VerticalAlignment="Bottom" Padding="5" Click="Button_Click_1"/>
-                <Button Content="Загрузить документы" HorizontalAlignment="Right" Margin="20" VerticalAlignment="Bottom" Click="Button_Click" Padding="5"/>
+                <Button x:Name="mainbtn" Content="Загрузить документы" HorizontalAlignment="Right" Margin="20" VerticalAlignment="Bottom" Click="Button_Click" Padding="5"/>
             </StackPanel>
         </StackPanel>
     </Grid>

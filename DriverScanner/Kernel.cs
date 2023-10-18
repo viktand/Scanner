@@ -1,4 +1,5 @@
-﻿using System;
+﻿using ServiceStack.Messaging;
+using System;
 using System.Collections.Generic;
 using System.Configuration;
 using System.IO.Ports;
@@ -14,6 +15,66 @@ namespace DriverScanner
     /// </summary>
     public static class Kernel
     {
+        /// <summary>
+        /// Настроить пин 1 разъема Кернел-чипа на чтение состояния внешней кнопки
+        /// 1 - нет нажатия, 0 - есть нажате
+        /// </summary>
+        /// <returns></returns>
+        public static bool ButtonIni()
+        {
+            var com = ConfigurationManager.AppSettings["comport"];
+            try
+            {
+                SerialPort port;
+                port = new SerialPort
+                {
+                    PortName = com
+                };
+                port.Open();
+                var send = "$KE,IO,SET,1,1,S\r\n";
+                Logger.Log(send);
+                port.Write(send);
+                var result = port.ReadLine();
+                Logger.Log(result);
+                port.Close();
+                return result.Contains("OK");
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Проверка состояния кнопки 
+        /// false - отпущена, true - нажата
+        /// </summary>
+        /// <returns></returns>
+        public static bool ButtonCheck()
+        {
+            var com = ConfigurationManager.AppSettings["comport"];
+            try
+            {
+                SerialPort port;
+                port = new SerialPort
+                {
+                    PortName = com
+                };
+                port.Open();
+                var send = "$KE,RD,1\r\n";
+                //Logger.Log(send);
+                port.Write(send);
+                var result = port.ReadLine();
+                //Logger.Log(result);
+                port.Close();
+                return result.Contains("#RD,01,0");
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
         /// <summary>
         /// Включить датчик бумаги
         /// </summary>

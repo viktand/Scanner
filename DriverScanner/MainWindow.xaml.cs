@@ -36,9 +36,11 @@ namespace DriverScanner
 
         public List<string> _scans;
         private Button _button;
+        private bool _hardButton;
         private int _counter;
         private int _norm;
         private Sender _sender;
+        private ButtonChecker _checker;
 
         public event PropertyChangedEventHandler PropertyChanged;
 
@@ -62,6 +64,25 @@ namespace DriverScanner
                 _norm = 5;
             }
             _sender = new Sender();
+            _checker = new ButtonChecker();
+            _checker.Click += _checker_Click;
+        }
+
+        private void _checker_Click(object sender, bool e)
+        {
+            if (e && !_hardButton)
+            {
+                //Show("Кнопка нажата");
+                _hardButton = true;
+                return;
+            }
+            if (!e && _hardButton) 
+            {
+                Dispatcher.Invoke(() => Button_Click(this, null));
+                //Show("Кнопка отпущена");
+                _hardButton = false;
+
+            }
         }
 
         private void NotifyPropertyChanged([CallerMemberName] String propertyName = "")
@@ -87,34 +108,37 @@ namespace DriverScanner
 
         private void Button_Click(object sender, RoutedEventArgs e)
         {
-            _button = sender as Button;
-            if (_loaded)
+            try
             {
-                _loaded = false;
-                scanner.StopLoopScan();
-                EndScann();
-                SaveAll();
+                if (_loaded)
+                {
+                    Logger.Log("Остановка сканирования по кнопке");
+                    _loaded = false;
+                    scanner.StopLoopScan();
+                    //EndScann();
+                    _scans = new List<string>();
+                    list.Visibility = Visibility.Hidden;
+                    mainbtn.Content = "Загрузить документы";
+                    TextLoad = GetTextLoad();
+                    coun.Visibility = Visibility.Hidden;
+                    return;
+                }
+                Logger.Log("Запуск сканирования");
+                _loaded = true;
+                _counter = _norm;
+                TextLoad = "Вставляйте документы в сканер по одному. Нажмите кнопку, чтобы завершить процесс";
+                coun.Visibility = Visibility.Visible;
+                NotifyPropertyChanged("Counter");
+                banner.Foreground = new SolidColorBrush(Colors.Red);
                 _scans = new List<string>();
-                list.Visibility = Visibility.Hidden;
-                _button.Content = "Загрузить документы";                  
-                TextLoad = GetTextLoad();
-                coun.Visibility = Visibility.Hidden;
-                return;
+                Task.Run(() => Scann());
+                mainbtn.Content = "Сохранить сканирование";
             }
-            _loaded = true;
-            _counter = _norm;
-            TextLoad = "Вставляйте документы в сканер по одному. Нажмите кнопку, чтобы завершить процесс";
-            coun.Visibility = Visibility.Visible;
-            NotifyPropertyChanged("Counter");
-            banner.Foreground = new SolidColorBrush(Colors.Red);
-            _scans = new List<string>();
-            Task.Run(() => Scann());
-            _button.Content = "Сохранить сканирование";
-        }
-
-        private void SaveAll()
-        {
-            //
+            catch(Exception ex)
+            {
+                Logger.Error(ex.Message);
+            }
+             
         }
 
         private void Scann()
@@ -156,6 +180,7 @@ namespace DriverScanner
             scanner.ScanEvent -= Scanner_ScanEvent;
             scanner = null;
             SavePdf();
+            ClearScanFolder();
         }
 
         /// <summary>
@@ -166,13 +191,8 @@ namespace DriverScanner
         {
             string PathToFolder = @"scans\";
             string[] allfiles = Directory.GetFiles(PathToFolder, "*.jpg");
-            var images = new List<System.Drawing.Image>();
-            foreach (string filename in allfiles)
-            {
-                images.Add(new Bitmap(filename));
-                File.Delete(filename);
-            }
-            if (images.Count() > 0)
+           
+            if (allfiles.Count() > 0)
             {
                 var dir = PathToFolder + @"\" + DateTime.Today.ToString("dd.MM.yyyy");
                 if (!Directory.Exists(dir))
@@ -184,7 +204,7 @@ namespace DriverScanner
                 var document = new PdfDocument();
                 document.Info.Title = "scan" +DateTime.Now;
                 var senderIndex = int.Parse(DateTime.Now.Minute.ToString() + DateTime.Now.Millisecond);
-                foreach (var image in images)
+                foreach (var fl in allfiles)
                 {
                     // Create an empty page
                     var page = document.AddPage();
@@ -192,16 +212,27 @@ namespace DriverScanner
                     // Get an XGraphics object for drawing
                     var gfx = XGraphics.FromPdfPage(page);
                     var memoryStream = new MemoryStream();
+                    var image = new Bitmap(fl);
                     image.Save(memoryStream, ImageFormat.Jpeg);
                     var img = XImage.FromStream(memoryStream);
                     gfx.DrawImage(img, 0, 0, gfx.PdfPage.Width, gfx.PdfPage.Height);
-
                 }
                 // Save the document...
                 document.Save(file);
                 _sender.AddTask(file);
-                Logger.Log($"Cохранен документ {file}");
+                Logger.Log($"Cохранен сканированный документ {file}");                               
             }
+        }
+
+        private void ClearScanFolder()
+        {
+            string PathToFolder = @"scans\";
+            string[] allfiles = Directory.GetFiles(PathToFolder, "*.jpg");
+            foreach (string filename in allfiles)
+            {
+                File.Delete(filename);
+            }
+            Logger.Log("Папка со сканами очищена от черновиков сканов");
         }
 
         private void ExitFromScan()
@@ -209,7 +240,6 @@ namespace DriverScanner
             scanner.StopLoopScan();
             EndScann();
             _loaded = false;
-            SaveAll();
             _scans = new List<string>();
             Dispatcher.Invoke(() =>
             {
