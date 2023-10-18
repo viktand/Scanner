@@ -1,9 +1,10 @@
-﻿using Microsoft.Win32;
+﻿using PdfSharp.Drawing;
+using PdfSharp.Pdf;
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Configuration;
+using System.Drawing;
 using System.Drawing.Imaging;
 using System.IO;
 using System.Linq;
@@ -14,13 +15,8 @@ using System.Threading.Tasks;
 using System.Timers;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Data;
-using System.Windows.Documents;
-using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
-using System.Windows.Navigation;
-using System.Windows.Shapes;
 
 namespace DriverScanner
 {
@@ -42,6 +38,7 @@ namespace DriverScanner
         private Button _button;
         private int _counter;
         private int _norm;
+        private Sender _sender;
 
         public event PropertyChangedEventHandler PropertyChanged;
 
@@ -64,6 +61,7 @@ namespace DriverScanner
             {
                 _norm = 5;
             }
+            _sender = new Sender();
         }
 
         private void NotifyPropertyChanged([CallerMemberName] String propertyName = "")
@@ -156,7 +154,54 @@ namespace DriverScanner
         private void EndScann()
         {
             scanner.ScanEvent -= Scanner_ScanEvent;
-            scanner = null;           
+            scanner = null;
+            SavePdf();
+        }
+
+        /// <summary>
+        /// Вытащить все файлы с картинками из папки сканирования и собрать их в один ПДФ-файл
+        /// </summary>
+        /// <exception cref="NotImplementedException"></exception>
+        private void SavePdf()
+        {
+            string PathToFolder = @"scans\";
+            string[] allfiles = Directory.GetFiles(PathToFolder, "*.jpg");
+            var images = new List<System.Drawing.Image>();
+            foreach (string filename in allfiles)
+            {
+                images.Add(new Bitmap(filename));
+                File.Delete(filename);
+            }
+            if (images.Count() > 0)
+            {
+                var dir = PathToFolder + @"\" + DateTime.Today.ToString("dd.MM.yyyy");
+                if (!Directory.Exists(dir))
+                {
+                    Directory.CreateDirectory(dir);
+                }
+                var file = dir + @"\filename_" + DateTime.Now.ToString("HH-mm-ss") + ".pdf";
+                
+                var document = new PdfDocument();
+                document.Info.Title = "scan" +DateTime.Now;
+                var senderIndex = int.Parse(DateTime.Now.Minute.ToString() + DateTime.Now.Millisecond);
+                foreach (var image in images)
+                {
+                    // Create an empty page
+                    var page = document.AddPage();
+                    page.Size = PdfSharp.PageSize.A4;
+                    // Get an XGraphics object for drawing
+                    var gfx = XGraphics.FromPdfPage(page);
+                    var memoryStream = new MemoryStream();
+                    image.Save(memoryStream, ImageFormat.Jpeg);
+                    var img = XImage.FromStream(memoryStream);
+                    gfx.DrawImage(img, 0, 0, gfx.PdfPage.Width, gfx.PdfPage.Height);
+
+                }
+                // Save the document...
+                document.Save(file);
+                _sender.AddTask(file);
+                Logger.Log($"Cохранен документ {file}");
+            }
         }
 
         private void ExitFromScan()

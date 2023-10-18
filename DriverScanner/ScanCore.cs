@@ -28,7 +28,7 @@ namespace DriverScanner
         {
             try
             {
-                Log("Запуск процедуры сканирования (GpAuto function)");
+                Logger.Log("Запуск процедуры сканирования (GpAuto function)");
                 _check = true;
                 Task.Run(() =>
                 {
@@ -54,19 +54,19 @@ namespace DriverScanner
                     catch
                     {
                         _check = false;
-                        Log("Ошибка при инициализации сканера. Будет нажатие на кнопку питания.");
+                        Logger.Log("Ошибка при инициализации сканера. Будет нажатие на кнопку питания.");
                         ScanEvent(this, 10);
                         var mess = Kernel.PowerSwitch();
                         if (mess != "")
                         {
-                            Log($"Не удалось нажать кнопку питания, получена ошибка {mess}");
+                            Logger.Log($"Не удалось нажать кнопку питания, получена ошибка {mess}");
                             return;
                         }
-                        Log("Кнопку питания нажали.");
+                        Logger.Log("Кнопку питания нажали.");
                         Thread.Sleep(10000);
                         ScanEvent(this, 1);
                         ScanEvent(this, 12);
-                        Log("Завершение процедуры сканирования - приглашение повторить ее.");
+                        Logger.Log("Завершение процедуры сканирования - приглашение повторить ее.");
                         _scaner.Dispose();
                         return;
                     }
@@ -109,9 +109,9 @@ namespace DriverScanner
                     _timer.Start();
 
 
-                    Log("Запуск сканирования");
+                    Logger.Log("Запуск сканирования");
                     _scaner.Acquire();
-                    Log("Сканирование завершено");
+                    Logger.Log("Сканирование завершено");
                     _scaner.AcquireCompleted -= _scaner_AcquireCompleted;
                     _scaner.EndXfer -= _scaner_EndXfer;
                     _scaner.AcquireError -= _scaner_AcquireError;
@@ -122,20 +122,20 @@ namespace DriverScanner
                 ScanEvent?.Invoke(this, 13);
                 }catch (Exception e)
             {
-                Log("Общая ошибка: " + e.Message);
+                Logger.Log("Общая ошибка: " + e.Message);
                 ScanEvent?.Invoke(this, 11);
             }        
         }
 
         public void StopLoopScan()
         {
-            Log("Команда завершить циклическое сканирование");
+            Logger.Log("Команда завершить циклическое сканирование");
             _go = false;
         }
 
         public void ContinueScann()
         {
-            if (_go) { Log("Перезапуск сканирования"); }
+            if (_go) { Logger.Log("Перезапуск сканирования"); }
         }
 
         private void _scaner_DeviceEvent(object sender, Twain32.DeviceEventEventArgs e)
@@ -153,7 +153,7 @@ namespace DriverScanner
         { 
             if(_go) ScanEvent?.Invoke(this, 2);
             Console.WriteLine(e.Exception.Message);
-            Log($"Ошибка сканирования: {e.Exception.Message}");
+            Logger.Log($"Ошибка сканирования: {e.Exception.Message}");
             _scaner.CloseDataSource();
             _scaner.CloseDSM();        
         }
@@ -163,25 +163,20 @@ namespace DriverScanner
             try
             {
                 var _file = @"scans\" + DateTime.Now.Ticks.ToString() + ".jpg";
-                Log($"Сохраниение будет в файл: {_file}");
+                Logger.Log($"Сохраниение будет в файл: {_file}");
                 e.Image.Save(_file, ImageFormat.Jpeg);
                 NewScan?.Invoke(this, _file);
                 e.Image.Dispose();
-                Log("Успешно сохранилось");
+                Logger.Log("Успешно сохранилось");
             }
             catch (Exception ex)
             {
                 Console.WriteLine("{0}: {1}{2}{3}{2}", ex.GetType().Name, ex.Message, Environment.NewLine, ex.StackTrace);
-                Log($"Ошибка при сохранении: {ex.Message}");
+                Logger.Log($"Ошибка при сохранении: {ex.Message}");
             }
             ScanEvent?.Invoke(this, 3);
         }
 
-        private void Log(string message)
-        {
-            var text = DateTime.Now.ToString() + " : " + message + "\r\n";
-            File.AppendAllText("log.txt", text);
-        }
 
         private void _scaner_AcquireCompleted(object sender, System.EventArgs e)
         {
@@ -197,7 +192,7 @@ namespace DriverScanner
             _scaner.CloseDataSource();
             _scaner.CloseDSM();
             ScanEvent?.Invoke(this, 4);
-            Log("Сканирование завершено успешно");
+            Logger.Log("Сканирование завершено успешно");
         }
 
         public void Close()
