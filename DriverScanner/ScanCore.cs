@@ -11,7 +11,7 @@ namespace DriverScanner
 {
     internal class ScanCore
     {
-        private readonly KernelConnector _kernel;
+        private readonly KernelConnectorWeb _kernel;
         private Twain32 _scaner;
         private bool _check;
         private System.Timers.Timer _timer;
@@ -20,7 +20,7 @@ namespace DriverScanner
         public event EventHandler<int> ScanEvent;
         public event EventHandler<string> NewScan;
 
-        public ScanCore(KernelConnector kernelConnector)
+        public ScanCore(KernelConnectorWeb kernelConnector)
         {
             _kernel = kernelConnector;
             _scaner = new Twain32();
@@ -90,11 +90,11 @@ namespace DriverScanner
 
                     #endregion
 
-                    _scaner.AcquireCompleted += _scaner_AcquireCompleted;
-                    _scaner.EndXfer += _scaner_EndXfer;
-                    _scaner.AcquireError += _scaner_AcquireError;
-                    _scaner.TwainStateChanged += _scaner_TwainStateChanged;
-                    _scaner.DeviceEvent += _scaner_DeviceEvent;
+                    _scaner.AcquireCompleted += Scaner_AcquireCompleted;
+                    _scaner.EndXfer += Scaner_EndXfer;
+                    _scaner.AcquireError += Scaner_AcquireError;
+                    _scaner.TwainStateChanged += Scaner_TwainStateChanged;
+                    _scaner.DeviceEvent += Scaner_DeviceEvent;
 
                     ScanEvent?.Invoke(this, 1);
                     // Замкнуть датчик бумаги, чтобы сканер начал затягивать документ. Ну он так будет думать.
@@ -115,16 +115,17 @@ namespace DriverScanner
 
                     Logger.Log("Запуск сканирования");
                     _scaner.Acquire();
-                    Logger.Log("Сканирование завершено");
-                    _scaner.AcquireCompleted -= _scaner_AcquireCompleted;
-                    _scaner.EndXfer -= _scaner_EndXfer;
-                    _scaner.AcquireError -= _scaner_AcquireError;
-                    _scaner.TwainStateChanged -= _scaner_TwainStateChanged;
-                    _scaner.DeviceEvent -= _scaner_DeviceEvent;
+                    Logger.Log("Сканирование завершено.");
+                    _scaner.AcquireCompleted -= Scaner_AcquireCompleted;
+                    _scaner.EndXfer -= Scaner_EndXfer;
+                    _scaner.AcquireError -= Scaner_AcquireError;
+                    _scaner.TwainStateChanged -= Scaner_TwainStateChanged;
+                    _scaner.DeviceEvent -= Scaner_DeviceEvent;
                 }
                 _check = false;
                 ScanEvent?.Invoke(this, 13);
-                }catch (Exception e)
+            }
+            catch (Exception e)
             {
                 Logger.Log("Общая ошибка: " + e.Message);
                 ScanEvent?.Invoke(this, 11);
@@ -142,27 +143,26 @@ namespace DriverScanner
             if (_go) { Logger.Log("Перезапуск сканирования"); }
         }
 
-        private void _scaner_DeviceEvent(object sender, Twain32.DeviceEventEventArgs e)
+        private void Scaner_DeviceEvent(object sender, Twain32.DeviceEventEventArgs e)
         {
             ScanEvent?.Invoke(this, 6);
         }
 
-        private void _scaner_TwainStateChanged(object sender, Twain32.TwainStateEventArgs e)
+        private void Scaner_TwainStateChanged(object sender, Twain32.TwainStateEventArgs e)
         {
             Console.WriteLine(e.TwainState);
             //ScanEvent?.Invoke(this, 5);
         }      
 
-        private void _scaner_AcquireError(object sender, Twain32.AcquireErrorEventArgs e)
+        private void Scaner_AcquireError(object sender, Twain32.AcquireErrorEventArgs e)
         { 
-            if(_go) ScanEvent?.Invoke(this, 2);
-            Console.WriteLine(e.Exception.Message);
             Logger.Log($"Ошибка сканирования: {e.Exception.Message}");
+            if(_go) ScanEvent?.Invoke(this, 2);            
             _scaner.CloseDataSource();
             _scaner.CloseDSM();        
         }
 
-        private void _scaner_EndXfer(object sender, Twain32.EndXferEventArgs e)
+        private void Scaner_EndXfer(object sender, Twain32.EndXferEventArgs e)
         {
             try
             {
@@ -182,7 +182,7 @@ namespace DriverScanner
         }
 
 
-        private void _scaner_AcquireCompleted(object sender, System.EventArgs e)
+        private void Scaner_AcquireCompleted(object sender, EventArgs e)
         {
             try
             {

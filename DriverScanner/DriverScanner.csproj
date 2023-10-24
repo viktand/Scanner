@@ -89,11 +89,14 @@
       <SubType>Designer</SubType>
     </ApplicationDefinition>
     <Compile Include="ButtonChecker.cs" />
+    <Compile Include="KernelConnectorWeb.cs" />
     <Compile Include="KernelConnector.cs" />
     <Compile Include="Logger.cs" />
     <Compile Include="MessageWindow.xaml.cs">
       <DependentUpon>MessageWindow.xaml</DependentUpon>
     </Compile>
+    <Compile Include="Model\ResponseString.cs" />
+    <Compile Include="Model\ResponseBool.cs" />
     <Compile Include="ProcessMG.cs" />
     <Compile Include="ScanCore.cs" />
     <Compile Include="Sender.cs" />

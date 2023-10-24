@@ -7,11 +7,12 @@ namespace DriverScanner
     {
         public event EventHandler<bool> Click;
 
-        private Timer _timer;
-        private readonly KernelConnector _kernel;
+        private readonly Timer _timer;
+        private readonly KernelConnectorWeb _kernel;
+        private bool _exit;
 
-        public ButtonChecker(KernelConnector kernelConnector) 
-        {
+        public ButtonChecker(KernelConnectorWeb kernelConnector) 
+        {           
             _kernel = kernelConnector;
             _kernel.ButtonIni();
             _timer = new Timer(200)
@@ -20,13 +21,22 @@ namespace DriverScanner
             };
             _timer.Elapsed += Timer_Elapsed;
             _timer.Start();
+            _exit = false;
+            Logger.Log("Чекер кнопки запущен");
         }
 
         private void Timer_Elapsed(object sender, ElapsedEventArgs e)
         {
-            var status = _kernel.ButtonCheck();
-            Click(this, status);
-            _timer.Start();
+            try
+            {               
+                var status = _kernel.ButtonCheck();
+                Click(this, status);
+                _timer.Start();                
+            }catch(Exception ex)
+            {
+                Logger.Error($"ошибка при проверке кнопки {ex.Message}");
+                _timer.Start();
+            }
         }
     }
 }

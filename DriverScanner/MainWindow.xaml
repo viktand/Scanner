@@ -5,27 +5,30 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:DriverScanner"
         mc:Ignorable="d"
-        Title="Загрузка документов" Height="514" Width="800" WindowStartupLocation="CenterScreen" WindowState="Maximized" Loaded="Window_Loaded">
-    <Grid>
-        <TextBlock x:Name="coun" Visibility="Hidden" Text="{Binding Counter}" Foreground="#FFFD0606" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,16,0,0" FontSize="20" FontWeight="Bold"/>
-        <StackPanel Orientation="Vertical">
-            <TextBlock x:Name="banner" HorizontalAlignment="Center" Margin="0,100,0,0" TextWrapping="Wrap" Text="{Binding TextLoad}" VerticalAlignment="Top" FontSize="22" FontWeight="Bold"/>
-            <StackPanel Orientation="Horizontal" VerticalAlignment="Bottom" Margin="0,100,0,0">
-                <Button Content="Power" HorizontalAlignment="Left" Margin="20"  VerticalAlignment="Bottom" Padding="5" Click="Button_Click_1"/>
-                <Button x:Name="mainbtn" Content="Загрузить документы" HorizontalAlignment="Right" Margin="20" VerticalAlignment="Bottom" Click="Button_Click" Padding="5"/>
+        Title="Загрузка документов" Height="514" Width="800" WindowStartupLocation="CenterScreen" WindowState="Maximized" Loaded="Window_Loaded" Closed="Window_Closed"
+        MouseUp="Window_MouseUp">
+    <Border BorderBrush="GreenYellow" BorderThickness="{Binding Brd}">
+        <Grid>
+            <TextBlock x:Name="coun" Visibility="Hidden" Text="{Binding Counter}" Foreground="#FFFD0606" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,16,0,0" FontSize="20" FontWeight="Bold"/>
+            <StackPanel Orientation="Vertical">
+                <TextBlock x:Name="banner" HorizontalAlignment="Center" Margin="0,100,0,0" TextWrapping="Wrap" Text="{Binding TextLoad}" VerticalAlignment="Top" FontSize="22" FontWeight="Bold"/>
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Bottom" Margin="0,100,0,0">
+                    <Button Content="Power" HorizontalAlignment="Left" Margin="20"  VerticalAlignment="Bottom" Padding="5" Click="Button_Click_1"/>
+                    <Button x:Name="mainbtn" Content="Загрузить документы" HorizontalAlignment="Right" Margin="20" VerticalAlignment="Bottom" Click="Button_Click" Padding="5"/>
+                </StackPanel>
+                <ListBox x:Name="list" Margin="10,0,10,0" Background="Transparent" Visibility="Hidden" VerticalAlignment="Bottom">
+                    <ListBox.ItemTemplate>
+                        <DataTemplate>
+                            <Image Source="{Binding}" Width="100" Margin="10"/>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                    <ListBox.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <StackPanel Orientation="Horizontal"/>
+                        </ItemsPanelTemplate>
+                    </ListBox.ItemsPanel>
+                </ListBox>
             </StackPanel>
-            <ListBox x:Name="list" Margin="10,0,10,0" Background="Transparent" Visibility="Hidden" VerticalAlignment="Bottom">
-                <ListBox.ItemTemplate>
-                    <DataTemplate>
-                        <Image Source="{Binding}" Width="100" Margin="10"/>
-                    </DataTemplate>
-                </ListBox.ItemTemplate>
-                <ListBox.ItemsPanel>
-                    <ItemsPanelTemplate>
-                        <StackPanel Orientation="Horizontal"/>
-                    </ItemsPanelTemplate>
-                </ListBox.ItemsPanel>
-            </ListBox>
-        </StackPanel>
-    </Grid>
+        </Grid>
+    </Border>
 </Window>

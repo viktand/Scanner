@@ -1,24 +1,60 @@
-﻿using System;
-using System.Configuration;
-using System.IO.Ports;
-using System.Threading;
+﻿using System.IO.Ports;
 
-namespace DriverScanner
+namespace KernelWebApi
 {
-    public class KernelConnector
+    public class KernelRepository : IKernelRepository
     {
-        private readonly SerialPort _port;
+        private SerialPort _port;
 
-        public bool IsRun { get; set; }
+        public bool Press { get; set; }
 
-        public KernelConnector() 
+        private bool _notWork;
+
+        public KernelRepository()
         {
-            var com = ConfigurationManager.AppSettings["comport"];
-            _port = new SerialPort
+            _notWork = true;
+        }
+
+        public void Start(string port)
+        {
+            Press = false;            
+            _port = new SerialPort(port)
             {
-                PortName = com
+                BaudRate = 9600,
+                Parity = Parity.None,
+                StopBits = StopBits.One,
+                DataBits = 8,
+                Handshake = Handshake.None,
+                RtsEnable = true
             };
-            IsRun = true;
+            _port.Open();
+            _notWork = false;
+        }
+
+        public bool Stop()
+        {
+            try
+            {
+                lock (_port)
+                {
+                    if (_port.IsOpen)
+                    {
+                        _port.Close();
+                        Console.WriteLine($"Порт {_port.PortName} закрыт");
+                    }
+                    _port.Dispose();
+                    return true;
+                }
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine($"Ошибка при закрытии порта {_port.PortName}: {e.Message}");
+                return false;
+            }
+            finally
+            {
+                _notWork = true;
+            }
         }
 
         /// <summary>
@@ -28,26 +64,23 @@ namespace DriverScanner
         /// <returns></returns>
         public bool ButtonIni()
         {
+            if (_notWork) return false;
             lock (_port)
             {
                 try
                 {
-                    _port.Open();
                     var send = "$KE,IO,SET,1,1,S\r\n";
-                    Logger.Log(send);
+                    Console.WriteLine(send);
                     _port.Write(send);
                     var result = _port.ReadLine();
-                    Logger.Log(result);
+                    Console.WriteLine(result);
                     return result.Contains("OK");
                 }
-                catch
+                catch(Exception ex) 
                 {
+                    Console.WriteLine(ex.Message);
                     return false;
-                }
-                finally
-                {
-                    _port.Close();
-                }
+                }              
             }
         }
         /// <summary>
@@ -57,25 +90,26 @@ namespace DriverScanner
         /// <returns></returns>
         public bool ButtonCheck()
         {
+            if (_notWork) return false;
+            if (Press)
+            {
+                Press = false;
+                return true;
+            }
             lock (_port)
             {
                 try
                 {
-                    _port.Open();
                     var send = "$KE,RD,1\r\n";
                     _port.Write(send);
                     var result = _port.ReadLine();
                     return result.Contains("#RD,01,0");
                 }
-                catch(Exception ex) 
+                catch (Exception ex)
                 {
-                    Logger.Error($"Check button: {ex.Message}");
+                    Console.WriteLine($"Check button: {ex.Message}");
                     return false;
-                }
-                finally
-                {
-                    _port.Close();
-                }
+                }              
             }
         }
 
@@ -85,25 +119,22 @@ namespace DriverScanner
         /// <returns></returns>
         public bool PaperSwitch(bool state, out string message)
         {
+            message = "";
+            if (_notWork) return false;
             lock (_port)
-            {
-                message = "";
+            {                
                 try
                 {
-                    _port.Open();
                     _port.Write($"$KE,REL,3,{(state ? "1" : "0")}\r\n");
-                    message = _port.ReadLine();                    
+                    message = _port.ReadLine();
                     return true;
                 }
-                catch(Exception ex ) 
+                catch (Exception ex)
                 {
-                    Logger.Error($"Ошибка при переключении датчика бумаги: {ex.Message}");
+                    Console.WriteLine($"Ошибка при переключении датчика бумаги: {ex.Message}");
+                    message = ex.Message;
                     return false;
-                }
-                finally
-                {
-                    _port.Close();
-                }
+                }               
             }
         }
 
@@ -113,12 +144,11 @@ namespace DriverScanner
         /// <returns></returns>
         public string PowerSwitch()
         {
+            if (_notWork) return "not init com-port";
             lock (_port)
             {
-                var com = ConfigurationManager.AppSettings["comport"];
                 try
                 {
-                    _port.Open();
                     _port.Write($"$KE,REL,1,1\r\n");
                     Thread.Sleep(500);
                     _port.Write($"$KE,REL,1,0\r\n");
@@ -127,10 +157,6 @@ namespace DriverScanner
                 catch (Exception e)
                 {
                     return e.Message;
-                }
-                finally
-                {
-                    _port.Close();
                 }
             }
         }
@@ -141,11 +167,11 @@ namespace DriverScanner
         /// <returns></returns>
         public string ScannSwitch()
         {
+            if (_notWork) return "not init com-port";
             lock (_port)
             {
                 try
                 {
-                    _port.Open();
                     _port.Write($"$KE,REL,2,1\r\n");
                     Thread.Sleep(500);
                     _port.Write($"$KE,REL,2,0\r\n");
@@ -155,25 +181,8 @@ namespace DriverScanner
                 {
                     return e.Message;
                 }
-                finally
-                {
-                    _port.Close();
-                }
             }
-        }
-
-        internal void Close()
-        {
-            lock(_port)
-            {
-                IsRun = false;
-                if (_port.IsOpen)
-                {
-                    _port.Close();
-                }
-                _port.Dispose();
-                Logger.Log("Com-port was closed");
-            }
-        }
+        }      
     }
 }
+

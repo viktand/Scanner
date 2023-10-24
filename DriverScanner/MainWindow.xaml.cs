@@ -1,5 +1,6 @@
 ﻿using PdfSharp.Drawing;
 using PdfSharp.Pdf;
+using ServiceStack;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -26,12 +27,16 @@ namespace DriverScanner
     {
         private string _textLoad;
         public string TextLoad { get => _textLoad; set { _textLoad = value; NotifyPropertyChanged(); } }
+        private int _brd;
+        public int Brd { get => _brd; set { _brd = value; NotifyPropertyChanged(); } }
         public string Counter { get => $"Осталось попыток {_counter}"; }
         private bool _loaded = false;
         private MessageWindow Mess;
         private System.Timers.Timer _timer;
         private bool _mess;
         private ScanCore scanner;
+        private DateTime _last; // последнее нажате на кнопку
+        private string _supprtPhone;
 
         public List<string> _scans;
         private bool _hardButton;
@@ -39,14 +44,14 @@ namespace DriverScanner
         private int _norm;
         private Sender _sender;
         private ButtonChecker _checker;
-        private bool _inClose;
-        private readonly KernelConnector _kernel;
+        private readonly KernelConnectorWeb _kernel;
 
         public event PropertyChangedEventHandler PropertyChanged;
 
         public MainWindow()
         {
             InitializeComponent();
+            Logger.Log("***** Start *****");
             ImageBrush myBrush = new ImageBrush
             {
                 ImageSource =
@@ -57,33 +62,51 @@ namespace DriverScanner
             TextLoad = GetTextLoad();
             DataContext = this;    
             _timer = new System.Timers.Timer { AutoReset = false, Enabled = false, Interval = 5000 };
-            _timer.Elapsed += _timer_Elapsed;
+            _timer.Elapsed += Timer_Elapsed;
+            _supprtPhone = ConfigurationManager.AppSettings["SupportPhone"];
             var norm = ConfigurationManager.AppSettings["Count"];
             if(!int.TryParse(norm, out _norm))
             {
-                _norm = 2;// 5;
+                _norm = 5;
             }
             _sender = new Sender();
-            _kernel = new KernelConnector();
+            _kernel = new KernelConnectorWeb();
             _checker = new ButtonChecker(_kernel);
-            _checker.Click += _checker_Click;
-            
+            _checker.Click += Checker_Click;
+            _last = DateTime.Now;
         }
 
-        private void _checker_Click(object sender, bool e)
+        private void Checker_Click(object sender, bool e)
         {
-            if (e && !_hardButton)
+            try
             {
-                //Show("Кнопка нажата");
-                _hardButton = true;
-                return;
-            }
-            if (!e && _hardButton) 
-            {
-                Dispatcher.Invoke(() => Button_Click(this, null));
-                //Show("Кнопка отпущена");
-                _hardButton = false;
+                if (e && !_hardButton)
+                {
+                    //Show("Кнопка нажата");
+                    Dispatcher.Invoke(() =>
+                    {
+                        Brd = 20;
+                    });
+                    _hardButton = true;
+                    return;
+                }
+                if (!e && _hardButton)
+                {
+                    if ((DateTime.Now - _last).TotalSeconds < 2) return; // время между нажатиями не меньше 2 сек. Иначе игнор.
+                    _last = DateTime.Now;
+                    Dispatcher.Invoke(() =>
+                    {
+                        Brd = 0;
+                        Button_Click(this, null);
+                    });
+                    //Show("Кнопка отпущена");
+                    _hardButton = false;
 
+                }
+            }catch(Exception ex)
+            {
+                Show(ex.Message);
+                Logger.Error($"Ошибка при чтении кнопки: {ex.Message}");
             }
         }
 
@@ -99,23 +122,26 @@ namespace DriverScanner
             sb.AppendLine("1. Разделите все листы, снимите все посторонние предементы - скобки, скрепки и т.п.");
             sb.AppendLine("2. Нажмите кнопку и вставляйте листы по одному.");
             sb.AppendLine("");
-            sb.AppendLine("Если что-то пошло не так, позвоните по телефону 112");
+            sb.AppendLine($"Если что-то пошло не так, позвоните по телефону {_supprtPhone}");
             return sb.ToString();
         }
-
-        private void _timer_Elapsed(object sender, ElapsedEventArgs e)
+        
+        /// <summary>
+        /// Таймер закрытия окна сообщений
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void Timer_Elapsed(object sender, ElapsedEventArgs e)
         {
             CloseShow();
         }
 
         private void Button_Click(object sender, RoutedEventArgs e)
         {
-            if (_inClose) return;
             try
             {
                 if (_loaded)
                 {
-                    _inClose = true;
                     Logger.Log("Остановка сканирования по кнопке");
                     _loaded = false;
                     scanner.StopLoopScan();
@@ -127,6 +153,7 @@ namespace DriverScanner
                     return;
                 }
                 Logger.Log("Запуск сканирования");
+                ClearScanFolder();
                 _loaded = true;
                 _counter = _norm;
                 TextLoad = "Вставляйте документы в сканер по одному. Нажмите кнопку, чтобы завершить процесс";
@@ -182,10 +209,7 @@ namespace DriverScanner
         {
             scanner.ScanEvent -= Scanner_ScanEvent;
             scanner = null;
-            SavePdf();
-            _inClose = false;
-            ClearScanFolder();
-
+            SavePdf();            
         }
 
         /// <summary>
@@ -205,10 +229,9 @@ namespace DriverScanner
                     Directory.CreateDirectory(dir);
                 }
                 var file = dir + @"\filename_" + DateTime.Now.ToString("HH-mm-ss") + ".pdf";
-                
+
                 var document = new PdfDocument();
-                document.Info.Title = "scan" +DateTime.Now;
-                var senderIndex = int.Parse(DateTime.Now.Minute.ToString() + DateTime.Now.Millisecond);
+                document.Info.Title = "scan" + DateTime.Now;
                 foreach (var fl in allfiles)
                 {
                     // Create an empty page
@@ -225,19 +248,27 @@ namespace DriverScanner
                 // Save the document...
                 document.Save(file);
                 _sender.AddTask(file);
+                document.Close();
                 Logger.Log($"Cохранен сканированный документ {file}");                               
             }
         }
 
         private void ClearScanFolder()
         {
-            string PathToFolder = @"scans\";
-            string[] allfiles = Directory.GetFiles(PathToFolder, "*.jpg");
-            foreach (string filename in allfiles)
+            try
             {
-                File.Delete(filename);
+                string PathToFolder = @"scans\";
+                string[] allfiles = Directory.GetFiles(PathToFolder, "*.jpg");
+                foreach (string filename in allfiles)
+                {
+                    File.Delete(filename);
+                }
+                Logger.Log("Папка со сканами очищена от черновиков сканов");
             }
-            Logger.Log("Папка со сканами очищена от черновиков сканов");
+            catch(Exception e)
+            {
+                Logger.Error($"Ошибка при удалении файла: {e.Message}");
+            }
         }
 
         private void ExitFromScan()
@@ -272,7 +303,8 @@ namespace DriverScanner
                     CloseShow();
                     break;
                 case 2:
-                    //Show("Документы не были загружены. Если произошло замятие, обратитесь к сотруднику по указанному телефону");                                        
+                    //Show("Документы не были загружены. Если произошло замятие, обратитесь к сотруднику по указанному телефону");
+                    Logger.Log("Выход из сканирования через ошибку");
                     if(--_counter == 0)
                     {
                         ExitFromScan();
@@ -375,6 +407,22 @@ namespace DriverScanner
             {
                 //Show(m);        
             }
+        }
+
+        private void Window_Closed(object sender, EventArgs e)
+        {
+            if (_mess)
+            {
+                CloseShow();
+                Thread.Sleep(100);
+                _timer.Stop();
+            }
+        }
+
+        private void Window_MouseUp(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        {
+            var url = "http://localhost:5000/CheckButton";
+            url.PostToUrl("");
         }
     }
 }
